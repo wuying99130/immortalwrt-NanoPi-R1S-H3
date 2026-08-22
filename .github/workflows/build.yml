@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-22.04
     
     steps:
-      - name: 检出源码仓库
+      - name: 检出轻量资产仓库
         uses: actions/checkout@v4
 
       - name: 初始化编译系统依赖
@@ -28,35 +28,42 @@ jobs:
           rsync unzip zlib1g-dev file wget subversion patch upx-ucl \
           autoconf automake libtool
 
-      - name: 更新和安装 Feeds
+      - name: 动态克隆官方 ImmortalWrt 源码
         run: |
+          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
+
+      - name: 注入配置与硬件 DTS 资产
+        run: |
+          # 1. 复制 feeds 配置与 .config 到源码目录
+          cp -f feeds.conf.default /tmp/immortalwrt/
+          cp -f .config /tmp/immortalwrt/
+          
+          # 2. 复制 dts 文件夹到工作区
+          cp -r dts /tmp/immortalwrt/
+          
+          # 3. 复制并执行 patch-dts.sh 注入内核与 Makefile
+          cp -f patch-dts.sh /tmp/immortalwrt/
+          chmod +x /tmp/immortalwrt/patch-dts.sh
+          cd /tmp/immortalwrt
+          TARGET_DIR="/tmp/immortalwrt" ./patch-dts.sh
+
+      - name: 更新 Feeds 与生成配置
+        run: |
+          cd /tmp/immortalwrt
           ./scripts/feeds update -a
-          # 加上 -f 参数，允许第三方源强制覆盖重复的官方源
           ./scripts/feeds install -f -a
-
-      - name: 应用 DTS 硬件补丁
-        run: |
-          chmod +x patch-dts.sh
-          TARGET_DIR="." ./patch-dts.sh
-
-      - name: 应用配置与预检
-        run: |
-          # 确保根目录的 .config 生效
-          if [ ! -f .config ]; then
-            echo "错误: 缺少 .config 文件！"
-            exit 1
-          fi
-          # 放在 Feeds 安装之后运行，确保第三方插件配置顺利通过校验不被洗掉
           make defconfig
 
       - name: 执行核心编译脚本
         run: |
-          # 给予脚本执行权限并运行纯编译逻辑
-          chmod +x build.sh
+          # 复制 build.sh 到源码目录并执行
+          cp -f build.sh /tmp/immortalwrt/
+          chmod +x /tmp/immortalwrt/build.sh
+          cd /tmp/immortalwrt
           ./build.sh
 
       - name: 上传编译产物
         uses: actions/upload-artifact@v4
         with:
           name: immortalwrt-nanopi-r1s-h3-firmware
-          path: bin/out/*
+          path: /tmp/immortalwrt/bin/out/*
