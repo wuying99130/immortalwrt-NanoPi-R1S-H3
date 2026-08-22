@@ -1,72 +1,123 @@
-name: Build ImmortalWrt NanoPi R1S-H3
+name: 编译 ImmortalWrt NanoPi R1S-H3
 
 on:
   workflow_dispatch:
     inputs:
-      release:
-        description: 'Release build'
-        default: 'false'
-        type: boolean
+      version:
+        description: '版本分支'
+        required: true
+        type: choice
+        options:
+          - openwrt-24.10
+          - openwrt-23.05
+          - master
+        default: 'openwrt-24.10'
+      packages:
+        description: '额外软件包 (空格分隔)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+    strategy:
+      fail-fast: false
+
     steps:
-      - name: 检出轻量资产仓库
+      - name: 检出仓库
         uses: actions/checkout@v4
+        with:
+          path: immortalwrt-Quake
 
-      - name: 初始化编译系统依赖
+      # ================================
+      # 释放磁盘空间（保留必要目录）
+      # ================================
+      - name: 释放磁盘空间
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|https://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo apt update
-          sudo apt install -y build-essential clang flex bison g++ gawk \
-          gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev \
-          libssl-dev python3 python3-dev python3-pip python3-setuptools \
-          rsync unzip zlib1g-dev file wget subversion patch upx-ucl \
-          autoconf automake libtool
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo docker image prune -af || true
 
-      - name: 动态克隆官方 ImmortalWrt 源码
+      # ================================
+      # 安装编译依赖（不替换源）
+      # ================================
+      - name: 安装编译依赖
         run: |
-          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential flex bison gawk gettext git \
+            libncurses5-dev libssl-dev python3 python3-dev \
+            python3-pip unzip wget zlib1g-dev file rsync \
+            subversion swig libelf-dev time curl xz-utils
 
-      - name: 优先更新 Feeds 源与安装第三方插件
+      # ================================
+      # 克隆 ImmortalWrt 源码
+      # ================================
+      - name: 克隆 ImmortalWrt 源码
+        run: |
+          git clone --depth=1 --branch "${{ inputs.version }}" \
+            https://github.com/immortalwrt/immortalwrt.git /tmp/immortalwrt
+
+      # ================================
+      # dl 缓存（极大提升稳定性）
+      # ================================
+      - name: 缓存 dl 目录
+        uses: actions/cache@v4
+        with:
+          path: /tmp/immortalwrt/dl
+          key: immortalwrt-dl-${{ inputs.version }}
+          restore-keys: |
+            immortalwrt-dl-
+
+      # ================================
+      # 复制编译脚本和 .config
+      # ================================
+      - name: 复制编译脚本和 .config
+        run: |
+          cp immortalwrt-Quake/build.sh /tmp/immortalwrt/
+          cp immortalwrt-Quake/.config /tmp/immortalwrt/
+
+      # ================================
+      # 安装 DTS 文件（避免重复写入）
+      # ================================
+      - name: 安装 DTS 文件
+        run: |
+          TARGET_DIR=/tmp/immortalwrt bash immortalwrt-Quake/patch-dts.sh
+
+      # ================================
+      # 运行编译（保留你的逻辑）
+      # ================================
+      - name: 运行编译
         run: |
           cd /tmp/immortalwrt
-          # 1. 先把自定义的 feeds.conf.default 拷贝过去
-          cp -f ${GITHUB_WORKSPACE}/feeds.conf.default ./
-          
-          # 2. 立即更新并安装所有官方及第三方源（将 passwall、adguardhome 等源码下载到本地）
-          ./scripts/feeds update -a
-          ./scripts/feeds install -f -a
+          chmod +x build.sh
+          bash build.sh "${{ inputs.packages }}"
 
-      - name: 注入 .config 配置与硬件 DTS 资产
-        run: |
-          cd /tmp/immortalwrt
-          # 3. 确保第三方源码已经就位后，再放入锁定了 =y 的 .config
-          cp -f ${GITHUB_WORKSPACE}/.config ./
-          
-          # 4. 拷贝并运行 DTS 补丁
-          cp -r ${GITHUB_WORKSPACE}/dts ./
-          cp -f ${GITHUB_WORKSPACE}/patch-dts.sh ./
-          chmod +x patch-dts.sh
-          TARGET_DIR="/tmp/immortalwrt" ./patch-dts.sh
-          
-          # 5. 最后生成最终配置（此时由于源码已就位，.config 里的第三方插件会被完美保留）
-          make defconfig
-
-      - name: 执行核心编译脚本
-        run: |
-          # 复制 build.sh 到源码目录并执行
-          cp -f ${GITHUB_WORKSPACE}/build.sh /tmp/immortalwrt/
-          chmod +x /tmp/immortalwrt/build.sh
-          cd /tmp/immortalwrt
-          ./build.sh
-
-      - name: 上传编译产物
+      # ================================
+      # 上传固件
+      # ================================
+      - name: 上传固件
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-nanopi-r1s-h3-firmware
+          name: immortalwrt-nanopi-r1s-h3-${{ github.run_id }}
           path: /tmp/immortalwrt/bin/out/*
+          retention-days: 7
+
+      # ================================
+      # 创建 Release
+      # ================================
+      - name: 创建 Release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_id }}
+          name: ImmortalWrt NanoPi R1S-H3 - ${{ github.run_id }}
+          files: /tmp/immortalwrt/bin/out/*
+          body: |
+            ## 编译信息
+            - **分支**: `${{ inputs.version }}`
+            - **日期**: $(date +%Y-%m-%d)
+            - **运行 ID**: ${{ github.run_id }}
+            - **额外软件包**: ${{ inputs.packages }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
