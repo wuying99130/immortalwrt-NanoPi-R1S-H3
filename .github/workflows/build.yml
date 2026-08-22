@@ -32,32 +32,35 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
 
-      - name: 注入配置与硬件 DTS 资产
-        run: |
-          # 1. 复制 feeds 配置与 .config 到源码目录
-          cp -f feeds.conf.default /tmp/immortalwrt/
-          cp -f .config /tmp/immortalwrt/
-          
-          # 2. 复制 dts 文件夹到工作区
-          cp -r dts /tmp/immortalwrt/
-          
-          # 3. 复制并执行 patch-dts.sh 注入内核与 Makefile
-          cp -f patch-dts.sh /tmp/immortalwrt/
-          chmod +x /tmp/immortalwrt/patch-dts.sh
-          cd /tmp/immortalwrt
-          TARGET_DIR="/tmp/immortalwrt" ./patch-dts.sh
-
-      - name: 更新 Feeds 与生成配置
+      - name: 优先更新 Feeds 源与安装第三方插件
         run: |
           cd /tmp/immortalwrt
+          # 1. 先把自定义的 feeds.conf.default 拷贝过去
+          cp -f ${GITHUB_WORKSPACE}/feeds.conf.default ./
+          
+          # 2. 立即更新并安装所有官方及第三方源（将 passwall、adguardhome 等源码下载到本地）
           ./scripts/feeds update -a
           ./scripts/feeds install -f -a
+
+      - name: 注入 .config 配置与硬件 DTS 资产
+        run: |
+          cd /tmp/immortalwrt
+          # 3. 确保第三方源码已经就位后，再放入锁定了 =y 的 .config
+          cp -f ${GITHUB_WORKSPACE}/.config ./
+          
+          # 4. 拷贝并运行 DTS 补丁
+          cp -r ${GITHUB_WORKSPACE}/dts ./
+          cp -f ${GITHUB_WORKSPACE}/patch-dts.sh ./
+          chmod +x patch-dts.sh
+          TARGET_DIR="/tmp/immortalwrt" ./patch-dts.sh
+          
+          # 5. 最后生成最终配置（此时由于源码已就位，.config 里的第三方插件会被完美保留）
           make defconfig
 
       - name: 执行核心编译脚本
         run: |
           # 复制 build.sh 到源码目录并执行
-          cp -f build.sh /tmp/immortalwrt/
+          cp -f ${GITHUB_WORKSPACE}/build.sh /tmp/immortalwrt/
           chmod +x /tmp/immortalwrt/build.sh
           cd /tmp/immortalwrt
           ./build.sh
