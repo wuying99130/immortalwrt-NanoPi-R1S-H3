@@ -38,43 +38,13 @@ echo "=========================================="
 echo "  阶段一：准备编译环境"
 echo "=========================================="
 
-# ---- 1. 安装编译依赖 ----
-log_prog "安装编译依赖..."
-sudo sed -i 's|http://azure.archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-sudo sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-sudo sed -i 's|https://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-sudo apt update
-sudo apt install -y build-essential clang flex bison g++ gawk \
-gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev \
-libssl-dev python3 python3-dev python3-pip python3-setuptools \
-rsync unzip zlib1g-dev file wget subversion patch upx-ucl \
-autoconf automake libtool
-log_sub "编译依赖安装完成"
+# 0. 注入重型开发语言（Go/Rust）顶级镜像加速通道
+export GOPROXY=https://goproxy.cn,direct
+export RUSTUP_DIST_SERVER=https://ustc.edu.cn
+export RUSTUP_UPDATE_ROOT=https://ustc.edu.cn/rustup
 
-# ---- 2. 检查环境 ----
-log_sub "工作目录: $WORKDIR（已是源码根目录，跳过克隆）"
-
-# ---- 3. 更新 feeds ----
-log_prog "更新 feeds..."
-./scripts/feeds update -a
-./scripts/feeds install -a
-log_sub "feeds 更新完成"
-
-# ---- 4. 确认 .config ----
-log_prog "确认 .config..."
-if [ ! -f .config ]; then
-    echo "错误: 缺少 .config，请检查 CI 是否已复制"
-    exit 1
-fi
-log_sub ".config 就绪（仓库版本，路径: $PWD/.config）"
-
-# ---- 5. defconfig ----
-log_prog "展开默认配置..."
-make defconfig
-log_sub "defconfig 完成"
-
-# ---- 6. 下载源码 ----
-log_prog "下载源码包..."
+# 1. 下载源码包与编译工具链
+log_prog "下载源码依赖包..."
 make download -j8
 find dl -size -1024c -exec rm -f {} \;
 log_sub "源码包下载完成"
@@ -87,21 +57,71 @@ log_sub "工具链编译完成"
 # ---- 8. 编译交叉工具链 ----
 log_prog "编译交叉工具链..."
 make toolchain/install -j$(nproc)
-log_sub "交叉工具链编译完成"
 
-log_done "阶段一完成，环境就绪"
 
-# ============================================
-# 阶段二：编译固件（精简目录级进度）
-# ============================================
-echo ""
-echo "=========================================="
-echo "  阶段二：编译固件"
-echo "=========================================="
+# ============================================================
+# ⚙️ 核心新增：全自动沙盒依赖检测与审计报告系统
+# ============================================================
+log_prog "启动全自动沙盒依赖检测与审计..."
 
-log_prog "编译固件，耗时较长，请耐心等待..."
-echo ""
+REPORT_FILE="/tmp/plugin_check_report.txt"
+echo "==========================================" > "$REPORT_FILE"
+echo "       插件完整性静态检测与剔除报告       " >> "$REPORT_FILE"
+echo "       检测时间: $(date '+%Y-%m-%d %H:%M:%S')" >> "$REPORT_FILE"
+echo "==========================================" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
 
+HAS_BAD_PLUGINS=0
+
+# A. 自动揪出并物理干掉导致系统死循环（Recursive dependency）的垃圾插件
+while true; do
+    CHECK_ERR=$(make defconfig 2>&1)
+    if echo "$CHECK_ERR" | grep -q "recursive dependency detected"; then
+        BAD_SYMBOL=$(echo "$CHECK_ERR" | grep "symbol PACKAGE_" | head -n 1 | sed -E 's/.*symbol PACKAGE_([^ ]+).*/\1/')
+        if [ -n "$BAD_SYMBOL" ]; then
+            HAS_BAD_PLUGINS=1
+            echo "【不通过】插件: $BAD_SYMBOL | 原因: 源码 Makefile 存在逻辑死循环 (Recursive dependency)" >> "$REPORT_FILE"
+            
+            # 物理删除源码目录，彻底阻断其参与 Kconfig 扫描
+            find feeds/ package/ -type d -name "$BAD_SYMBOL" -exec rm -rf {} + 2>/dev/null || true
+            rm -rf tmp/
+            continue
+        fi
+    fi
+    break
+done
+
+# B. 挨个核对已勾选插件的源码完整性，缺失源的插件自动取消勾选，不留隐患
+grep "^CONFIG_PACKAGE_luci-app-" .config | grep "=y" | while read -r line; do
+    pkg_name=$(echo "$line" | cut -d'=' -f1 | sed 's/CONFIG_PACKAGE_//')
+    if ! find package/ feeds/ -type d -name "$pkg_name" | grep -q .; then
+        HAS_BAD_PLUGINS=1
+        echo "【不通过】插件: $pkg_name | 原因: 缺失源码 (Feeds 软件源中没有该包，或网络拉取失败)" >> "$REPORT_FILE"
+        
+        # 自动关闭勾选，不带病进入 5 小时编译流程
+        sed -i "s/CONFIG_PACKAGE_${pkg_name}=y/# CONFIG_PACKAGE_${pkg_name} is not set/g" .config
+    fi
+done
+
+# C. 记录检测结果
+if [ "$HAS_BAD_PLUGINS" -eq 0 ]; then
+    echo "【完美通过】所有在 .config 中勾选的插件均源码完整、依赖合法！" >> "$REPORT_FILE"
+fi
+
+echo "" >> "$REPORT_FILE"
+echo "==========================================" >> "$REPORT_FILE"
+
+# 终端实时打印报告，让你在 Actions 网页上前几秒即可知晓结果
+cat "$REPORT_FILE"
+
+# 确保检测过滤完成后，配置文件干净对齐
+make defconfig >/dev/null 2>&1
+log_done "依赖与插件审计完成，不合格插件已静默剔除。"
+# ============================================================
+
+
+# 2. 执行核心编译（带静默防爆与智能截错）
+log_prog "正在编译固件（耗时较长，请耐心等待）..."
 BUILD_LOG="/tmp/build.log"
 BUILD_FAILED=0
 
@@ -149,7 +169,10 @@ BUILD_DATE=$(date +%Y%m%d)
 
 mkdir -p bin/out
 
-# ext4-sdcard 镜像（使用 *nanopi-r1* 宽泛匹配，确保能抓到目标固件并加上日期）
+# 安全转储检测审计报告到你的固件输出包中
+cp -f /tmp/plugin_check_report.txt bin/out/ 2>/dev/null || true
+
+# ext4 镜像（使用 *nanopi-r1* 确保宽泛命中，重命名为 nanopi-r1s-h3）
 for file in bin/targets/sunxi/cortexa7/*nanopi-r1*ext4-sdcard*.img.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
@@ -192,24 +215,4 @@ echo "目标: NanoPi R1S-H3 (sunxi/cortexa7)" >> bin/out/build-info.txt
 echo "日期: $(date '+%Y-%m-%d %H:%M:%S')" >> bin/out/build-info.txt
 cp -f .config bin/out/config.buildinfo 2>/dev/null || true
 
-echo "=== 打包输出目录清单 ==="
-ls -lh bin/out/
-log_done "产物就绪"
-
-# ---- 汇总 ----
-echo ""
-echo "=========================================="
-echo "          编译汇总"
-echo "=========================================="
-printf "  %-20s : %s\n" "源码分支" "openwrt-24.10"
-printf "  %-20s : %s\n" "目标设备" "NanoPi R1S-H3 (Allwinner H3)"
-printf "  %-20s : %s\n" "目标平台" "sunxi/cortexa7"
-printf "  %-20s : %s\n" "LuCI 主题" "Argon"
-printf "  %-20s : %s\n" "WiFi" "BCM43430 (brcmfmac)"
-printf "  %-20s : %s\n" "USB 网络" "RTL8152"
-printf "  %-20s : %s\n" "文件系统" "ext4/squashfs/targz"
-printf "  %-20s : %s\n" "固件目录" "bin/out/"
-echo "=========================================="
-echo ""
-log_done "全部完成! 固件位于 bin/out/"
-echo ""
+log_done "所有产物已整洁打包至 bin/out/ 目录"
