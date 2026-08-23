@@ -2,7 +2,7 @@
 set -e
 
 # ============================================
-# ImmortalWrt 纯净编译脚本 (插件模块化增强版)
+# ImmortalWrt 纯净编译脚本 (多插件独立集中管理版)
 # ============================================
 
 WORKDIR="/tmp/immortalwrt"
@@ -48,14 +48,11 @@ export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rustup
 # [MODULE_START]: 第三方扩展插件独立集中管理模块
 # ------------------------------------------------------------------------------
 # 职责说明: 
-#   1. 专门用于集中安装非官方、易因 Feeds 命名冲突报错的第三方插件（如 Passwall）。
-#   2. 直接克隆到 package/custom-plugins/ 目录，不走官方 feeds 索引，彻底根治报错。
-# 维护提示: 
-#   - 以后如果想加别的插件，只需在此模块内仿照格式继续增加即可，便于整体移植和清理。
+#   1. 集中安装非官方、易因 Feeds 命名冲突或环境报错的第三方插件。
+#   2. 直接克隆到 package/custom-plugins/ 目录，独立下载、独立打包备份。
 # ==============================================================================
 log_prog "【模块加载】正在初始化第三方扩展插件独立模块..."
 
-# 创建独立的插件集中存放根目录
 CUSTOM_PLUGIN_DIR="package/custom-plugins"
 mkdir -p "$CUSTOM_PLUGIN_DIR"
 
@@ -73,6 +70,14 @@ if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
     git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
 else
     log_prog "-> Passwall 主程序已存在，跳过克隆。"
+fi
+
+# 3. 安装 Sing-Box 模块化面板插件 (采用主流兼容社区源)
+if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
+    log_prog "-> 正在克隆 luci-app-sing-box 插件..."
+    git clone --depth=1 https://github.com/sbwdl/luci-app-sing-box.git "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
+else
+    log_prog "-> luci-app-sing-box 插件已存在，跳过克隆。"
 fi
 
 log_done "【模块完成】第三方扩展插件独立模块加载完毕。"
@@ -196,14 +201,15 @@ fi
 
 log_done "固件编译成功"
 
-# 3. 收集产物并规范化命名
-log_prog "正在提取并规范化固件产物..."
+# 3. 收集产物、规范化命名并【独立打包所有第三方插件备份】
+log_prog "正在提取并规范化固件产物与多插件独立备份..."
 BUILD_DATE=$(date +%Y%m%d)
 
 mkdir -p bin/out
 
 cp -f /tmp/plugin_check_report.txt bin/out/ 2>/dev/null || true
 
+# 固件镜像打包
 for file in bin/targets/sunxi/cortexa7/*nanopi-r1*ext4-sdcard*.img.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
@@ -236,10 +242,26 @@ if [ -f "bin/targets/sunxi/cortexa7/sha256sums" ]; then
     cp -f bin/targets/sunxi/cortexa7/sha256sums bin/out/
 fi
 
+# 【新增逻辑】：将每个第三方插件各自独立打包为单独的压缩包，方便下载备份
+if [ -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
+    tar -czf "bin/out/plugin-openwrt-passwall-${BUILD_DATE}.tar.gz" -C "$CUSTOM_PLUGIN_DIR" openwrt-passwall
+    echo "已独立打包: plugin-openwrt-passwall-${BUILD_DATE}.tar.gz"
+fi
+
+if [ -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
+    tar -czf "bin/out/plugin-openwrt-passwall-packages-${BUILD_DATE}.tar.gz" -C "$CUSTOM_PLUGIN_DIR" openwrt-passwall-packages
+    echo "已独立打包: plugin-openwrt-passwall-packages-${BUILD_DATE}.tar.gz"
+fi
+
+if [ -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
+    tar -czf "bin/out/plugin-luci-app-sing-box-${BUILD_DATE}.tar.gz" -C "$CUSTOM_PLUGIN_DIR" luci-app-sing-box
+    echo "已独立打包: plugin-luci-app-sing-box-${BUILD_DATE}.tar.gz"
+fi
+
 echo "=== 编译信息 ===" > bin/out/build-info.txt
 echo "分支: openwrt-24.10" >> bin/out/build-info.txt
 echo "目标: NanoPi R1S-H3 (sunxi/cortexa7)" >> bin/out/build-info.txt
 echo "日期: $(date '+%Y-%m-%d %H:%M:%S')" >> bin/out/build-info.txt
 cp -f .config bin/out/config.buildinfo 2>/dev/null || true
 
-log_done "所有产物已整洁打包至 bin/out/ 目录"
+log_done "所有产物及独立插件备份已整洁打包至 bin/out/ 目录"
