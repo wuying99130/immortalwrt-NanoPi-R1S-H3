@@ -28,7 +28,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
         with:
-          path: immortalwrt-Quake
+          path: immortalwrt-NanoPi-R1S-H3
 
       # ================================
       # 释放磁盘空间（保留必要目录）
@@ -74,15 +74,15 @@ jobs:
       # ================================
       - name: 复制编译脚本和 .config
         run: |
-          cp immortalwrt-Quake/build.sh /tmp/immortalwrt/
-          cp immortalwrt-Quake/.config /tmp/immortalwrt/
+          cp immortalwrt-NanoPi-R1S-H3/build.sh /tmp/immortalwrt/
+          cp immortalwrt-NanoPi-R1S-H3/.config /tmp/immortalwrt/
 
       # ================================
       # 安装 DTS 文件（避免重复写入）
       # ================================
       - name: 安装 DTS 文件
         run: |
-          TARGET_DIR=/tmp/immortalwrt bash immortalwrt-Quake/patch-dts.sh
+          TARGET_DIR=/tmp/immortalwrt bash immortalwrt-NanoPi-R1S-H3/patch-dts.sh
 
       # ================================
       # 运行编译（保留你的逻辑）
