@@ -61,11 +61,13 @@ if [ -f "feeds.conf.default" ]; then
     
     while IFS= read -r line; do
         # 跳过注释和空行
-        [[ "$line" =~ ^#.*$ ]] || [[ -z "$line ]] && continue
+        [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]] && continue
         
         feed_type=$(echo "$line" | awk '{print $1}')
         feed_name=$(echo "$line" | awk '{print $2}')
-        feed_url=$(echo "$line" | awk '{print $3}')
+        # 获取第三列原始 URL，并通过 cut 裁剪掉可能存在的分号及后缀，保证 git ls-remote 能正常测试
+        raw_url=$(echo "$line" | awk '{print $3}')
+        feed_url=$(echo "$raw_url" | cut -d';' -f1)
         
         # 对 src-git 类型的第三方源测试其连通性
         if [ "$feed_type" = "src-git" ] && [ -n "$feed_url" ]; then
@@ -130,7 +132,7 @@ while true; do
             echo -e "${RED}[$(date '+%H:%M:%S')] ❌ 发现死循环插件: $BAD_SYMBOL${NC}"
             echo -e "${RED}       -> 原因: $REASON${NC}"
             
-            echo "【不通过】本地插件: $BAD_SYMBOL | 原因: $REASON" >> "$REPORT_FILE"
+            echo "【不通过】本地插件: $BAD_SYMBOL | 原因: $REASON" >> "$AUDIT_LOG"
             
             # 物理删除源码目录，彻底阻断其参与 Kconfig 扫描
             find feeds/ package/ -type d -name "$BAD_SYMBOL" -exec rm -rf {} + 2>/dev/null || true
@@ -142,38 +144,40 @@ while true; do
 done
 
 # B. 挨个核对已勾选插件的源码完整性，缺失源的插件自动取消勾选，并高亮告警
-grep "^CONFIG_PACKAGE_luci-app-" .config | grep "=y" | while read -r line; do
-    pkg_name=$(echo "$line" | cut -d'=' -f1 | sed 's/CONFIG_PACKAGE_//')
-    if ! find package/ feeds/ -type d -name "$pkg_name" | grep -q .; then
-        HAS_BAD_PLUGINS=1
-        REASON="缺失源码 (Feeds 软件源中没有该包，或拉取失败)"
-        
-        echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠️  检测到本地缺失插件: $pkg_name${NC}"
-        echo -e "${YELLOW}       -> 原因: $REASON${NC}"
-        echo -e "${YELLOW}       -> 动作: 已自动取消勾选，防止编译崩盘${NC}"
-        
-        echo "【不通过】本地插件: $pkg_name | 原因: $REASON" >> "$REPORT_FILE"
-        
-        # 自动关闭勾选，不带病进入编译流程
-        sed -i "s/CONFIG_PACKAGE_${pkg_name}=y/# CONFIG_PACKAGE_${pkg_name} is not set/g" .config
-    fi
-done
+if [ -f ".config" ]; then
+    grep "^CONFIG_PACKAGE_luci-app-" .config | grep "=y" | while read -r line; do
+        pkg_name=$(echo "$line" | cut -d'=' -f1 | sed 's/CONFIG_PACKAGE_//')
+        if ! find package/ feeds/ -type d -name "$pkg_name" | grep -q .; then
+            HAS_BAD_PLUGINS=1
+            REASON="缺失源码 (Feeds 软件源中没有该包，或拉取失败)"
+            
+            echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠️  检测到本地缺失插件: $pkg_name${NC}"
+            echo -e "${YELLOW}       -> 原因: $REASON${NC}"
+            echo -e "${YELLOW}       -> 动作: 已自动取消勾选，防止编译崩盘${NC}"
+            
+            echo "【不通过】本地插件: $pkg_name | 原因: $REASON" >> "$AUDIT_LOG"
+            
+            # 自动关闭勾选，不带病进入编译流程
+            sed -i "s/CONFIG_PACKAGE_${pkg_name}=y/# CONFIG_PACKAGE_${pkg_name} is not set/g" .config
+        fi
+    done
+fi
 
 # C. 记录检测结果摘要
 if [ "$HAS_BAD_PLUGINS" -eq 0 ]; then
-    echo "【完美通过】所有在 .config 中勾选的插件均源头健康且本地完整！" >> "$REPORT_FILE"
+    echo "【完美通过】所有在 .config 中勾选的插件均源头健康且本地完整！" >> "$AUDIT_LOG"
     echo -e "${GREEN}[$(date '+%H:%M:%S')] ✔️ 本地沙盒静态检测完美通过！${NC}"
 fi
 
-echo "" >> "$REPORT_FILE"
-echo "==========================================" >> "$REPORT_FILE"
+echo "" >> "$AUDIT_LOG"
+echo "==========================================" >> "$AUDIT_LOG"
 
 # 实时打印完整检测报告至 Actions 控制台
-cat "$REPORT_FILE"
+cat "$AUDIT_LOG"
 
 # 确保检测过滤完成后，配置文件干净对齐
 make defconfig >/dev/null 2>&1
-log_done "双层依赖与插件审计完成，不合格项已安全安全清洗。"
+log_done "双层依赖与插件审计完成，不合格项已安全清洗。"
 # ============================================================
 
 
