@@ -37,7 +37,7 @@ log_prog "【模块加载】正在初始化第三方扩展插件独立模块..."
 CUSTOM_PLUGIN_DIR="package/custom-plugins"
 mkdir -p "$CUSTOM_PLUGIN_DIR"
 
-# 1. 安装 Passwall 依赖组件包
+# 1. 安装 Passwall 依赖组件包 (使用真实的 GitHub 链接)
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
     log_prog "-> 正在克隆 Passwall 依赖组件包..."
     git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
@@ -45,7 +45,7 @@ else
     log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
 fi
 
-# 2. 安装 Passwall 主程序包
+# 2. 安装 Passwall 主程序包 (使用真实的 GitHub 链接)
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
     log_prog "-> 正在克隆 Passwall 主程序..."
     git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
@@ -53,7 +53,7 @@ else
     log_prog "-> Passwall 主程序已存在，跳过克隆。"
 fi
 
-# 3. 安装 Sing-Box 模块化面板插件 (采用主流兼容社区源)
+# 3. 安装 Sing-Box 模块化面板插件 (使用真实的 GitHub 链接)
 if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
     log_prog "-> 正在克隆 luci-app-sing-box 插件..."
     git clone --depth=1 https://github.com/sbwdl/luci-app-sing-box.git "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
