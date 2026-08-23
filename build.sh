@@ -200,7 +200,7 @@ if [ -f "bin/targets/sunxi/cortexa7/sha256sums" ]; then
     cp -f bin/targets/sunxi/cortexa7/sha256sums bin/out/
 fi
 
-# 【新增逻辑】：将每个第三方插件各自独立打包为单独的压缩包，方便下载备份
+# 将每个第三方插件各自独立打包为单独的压缩包，方便下载备份
 if [ -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
     tar -czf "bin/out/plugin-openwrt-passwall-${BUILD_DATE}.tar.gz" -C "$CUSTOM_PLUGIN_DIR" openwrt-passwall
     echo "已独立打包: plugin-openwrt-passwall-${BUILD_DATE}.tar.gz"
