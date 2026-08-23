@@ -149,33 +149,31 @@ BUILD_DATE=$(date +%Y%m%d)
 
 mkdir -p bin/out
 
-# ext4-sdcard 镜像
-for file in bin/targets/sunxi/cortexa7/*nanopi-r1*ext4-sdcard*.img.gz; do
+# ext4-sdcard 镜像（保留 nanopi-r1s-h3 原样命名并加上日期）
+for file in bin/targets/sunxi/cortexa7/*nanopi-r1s-h3*ext4-sdcard*.img.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
-        new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed 's/nanopi-r1s-h3/nanopi-r1/' | sed "s/\.img\.gz$/-${BUILD_DATE}.img.gz/")
+        new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed "s/\.img\.gz$/-${BUILD_DATE}.img.gz/")
         cp -f "$file" "bin/out/$new_filename"
         echo "已提取: $new_filename"
     fi
 done
 
-# squashfs-sdcard 镜像
-for file in bin/targets/sunxi/cortexa7/*nanopi-r1*squashfs-sdcard*.img.gz; do
+# squashfs-sdcard 镜像（保留 nanopi-r1s-h3 原样命名并加上日期）
+for file in bin/targets/sunxi/cortexa7/*nanopi-r1s-h3*squashfs-sdcard*.img.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
-        new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed 's/nanopi-r1s-h3/nanopi-r1/' | sed "s/\.img\.gz$/-${BUILD_DATE}.img.gz/")
+        new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed "s/\.img\.gz$/-${BUILD_DATE}.img.gz/")
         cp -f "$file" "bin/out/$new_filename"
         echo "已提取: $new_filename"
     fi
 done
 
-# rootfs.tar.gz
-# 修改点：将匹配模式从 *nanopi-r1*rootfs*.tar.gz 改为 *rootfs*.tar.gz
-# 原因：通用的 rootfs 包文件名通常不包含具体的设备型号（如 nanopi-r1）
+# rootfs.tar.gz (匹配包含 nanopi-r1s-h3 或者通用的 rootfs，确保最终输出格式正确)
 for file in bin/targets/sunxi/cortexa7/*rootfs*.tar.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
-        # 修改点：移除了 sed 's/nanopi-r1s-h3/nanopi-r1/'，因为文件名中本来就没有设备型号
+        # 自动将前缀标准化并带上日期版本号
         new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed "s/\.tar\.gz$/-${BUILD_DATE}.tar.gz/")
         cp -f "$file" "bin/out/$new_filename"
         echo "已提取: $new_filename"
