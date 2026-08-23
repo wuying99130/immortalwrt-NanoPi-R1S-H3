@@ -2,7 +2,7 @@
 set -e
 
 # ============================================
-# ImmortalWrt 纯净编译脚本 (多插件独立集中管理版)
+# ImmortalWrt 纯净编译脚本 (系统主体完成、末尾注入插件版)
 # ============================================
 
 GREEN='\033[0;32m'
@@ -25,49 +25,11 @@ export RUSTUP_DIST_SERVER=https://ustc.edu.cn
 export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rustup
 
 
-# ==============================================================================
-# [MODULE_START]: 第三方扩展插件独立集中管理模块
-# ------------------------------------------------------------------------------
-# 职责说明: 
-#   1. 集中安装非官方、易因 Feeds 命名冲突或环境报错的第三方插件。
-#   2. 直接克隆到 package/custom-plugins/ 目录，独立下载、独立打包备份。
-# ==============================================================================
-log_prog "【模块加载】正在初始化第三方扩展插件独立模块..."
+# ============================================================
+# 第一阶段：安安心心专注基础源码下载、工具链与主体固件编译
+# (开头绝对不放任何插件，确保地基稳固)
+# ============================================================
 
-CUSTOM_PLUGIN_DIR="package/custom-plugins"
-mkdir -p "$CUSTOM_PLUGIN_DIR"
-
-# 1. 安装 Passwall 依赖组件包 (使用镜像加速通道防止 128 错误)
-if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
-    log_prog "-> 正在克隆 Passwall 依赖组件包..."
-    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
-else
-    log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
-fi
-
-# 2. 安装 Passwall 主程序包
-if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
-    log_prog "-> 正在克隆 Passwall 主程序..."
-    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
-else
-    log_prog "-> Passwall 主程序已存在，跳过克隆。"
-fi
-
-# 3. 安装 Sing-Box 模块化面板插件
-if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
-    log_prog "-> 正在克隆 luci-app-sing-box 插件..."
-    git clone --depth=1 https://github.com/sbwdl/luci-app-sing-box.git "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
-else
-    log_prog "-> luci-app-sing-box 插件已存在，跳过克隆。"
-fi
-
-log_done "【模块完成】第三方扩展插件独立模块加载完毕。"
-# ==============================================================================
-# [MODULE_END]: 第三方扩展插件独立管理模块
-# ==============================================================================
-
-
-# 1. 下载源码包与编译工具链
 log_prog "下载源码依赖包..."
 make download -j8
 find dl -size -1024c -exec rm -f {} \;
@@ -78,10 +40,6 @@ make tools/install -j$(nproc)
 log_prog "编译 toolchain..."
 make toolchain/install -j$(nproc)
 
-
-# ============================================================
-# 🛡️ 官方 Feeds 更新与本地沙盒完整性审计
-# ============================================================
 log_prog "更新官方 Feeds 索引并执行本地沙盒静态检测..."
 
 AUDIT_LOG="/tmp/plugin_check_report.txt"
@@ -142,11 +100,9 @@ cat "$AUDIT_LOG"
 
 make defconfig >/dev/null 2>&1
 log_done "静态检测与审计完成。"
-# ============================================================
 
-
-# 2. 执行核心编译
-log_prog "正在编译固件（耗时较长，请耐心等待）..."
+# 执行核心编译
+log_prog "正在编译系统固件主体（耗时较长，请耐心等待）..."
 BUILD_LOG="/tmp/build.log"
 BUILD_FAILED=0
 
@@ -162,9 +118,48 @@ if [ "$BUILD_FAILED" -ne 0 ]; then
     exit 1
 fi
 
-log_done "固件编译成功"
+log_done "系统主体固件编译成功！"
 
-# 3. 收集产物、规范化命名并【独立打包所有第三方插件备份】
+
+# ============================================================
+# 第二阶段：系统固件编译完成后，在收尾步骤独立注入与克隆插件
+# (完美符合你说的：系统都成功了，最后才添加插件)
+# ============================================================
+log_prog "【插件收尾注入】系统固件主体已编译完成，开始在末尾挂载第三方插件..."
+
+CUSTOM_PLUGIN_DIR="package/custom-plugins"
+mkdir -p "$CUSTOM_PLUGIN_DIR"
+
+# 1. 安装 Passwall 依赖组件包
+if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
+    log_prog "-> 正在克隆 Passwall 依赖组件包..."
+    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
+else
+    log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
+fi
+
+# 2. 安装 Passwall 主程序包
+if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
+    log_prog "-> 正在克隆 Passwall 主程序..."
+    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
+else
+    log_prog "-> Passwall 主程序已存在，跳过克隆。"
+fi
+
+# 3. 安装 Sing-Box 模块化面板插件
+if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
+    log_prog "-> 正在克隆 luci-app-sing-box 插件..."
+    git clone --depth=1 https://github.com/sbwdl/luci-app-sing-box.git "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
+else
+    log_prog "-> luci-app-sing-box 插件已存在，跳过克隆。"
+fi
+
+log_done "【插件注入完成】第三方插件已在系统编译成功后成功挂载。"
+
+
+# ============================================================
+# 第三阶段：提取产物与插件独立打包归档
+# ============================================================
 log_prog "正在提取并规范化固件产物与多插件独立备份..."
 BUILD_DATE=$(date +%Y%m%d)
 mkdir -p bin/out
@@ -222,4 +217,4 @@ echo "架构平台: sunxi/cortexa7" >> bin/out/build-info.txt
 echo "编译时间: $(date '+%Y-%m-%d %H:%M:%S')" >> bin/out/build-info.txt
 cp -f .config bin/out/config.buildinfo 2>/dev/null || true
 
-log_done "所有产物及独立插件备份已整洁打包至 bin/out/ 目录"
+log_done "所有基础固件产物、独立插件以及备份已整洁打包至 bin/out/ 目录！"
