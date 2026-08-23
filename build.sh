@@ -149,8 +149,8 @@ BUILD_DATE=$(date +%Y%m%d)
 
 mkdir -p bin/out
 
-# ext4-sdcard 镜像（保留 nanopi-r1s-h3 原样命名并加上日期）
-for file in bin/targets/sunxi/cortexa7/*nanopi-r1s-h3*ext4-sdcard*.img.gz; do
+# ext4-sdcard 镜像（使用 *nanopi-r1* 宽泛匹配，确保能抓到目标固件并加上日期）
+for file in bin/targets/sunxi/cortexa7/*nanopi-r1*ext4-sdcard*.img.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
         new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed "s/\.img\.gz$/-${BUILD_DATE}.img.gz/")
@@ -159,8 +159,8 @@ for file in bin/targets/sunxi/cortexa7/*nanopi-r1s-h3*ext4-sdcard*.img.gz; do
     fi
 done
 
-# squashfs-sdcard 镜像（保留 nanopi-r1s-h3 原样命名并加上日期）
-for file in bin/targets/sunxi/cortexa7/*nanopi-r1s-h3*squashfs-sdcard*.img.gz; do
+# squashfs-sdcard 镜像（使用 *nanopi-r1* 宽泛匹配，确保能抓到目标固件并加上日期）
+for file in bin/targets/sunxi/cortexa7/*nanopi-r1*squashfs-sdcard*.img.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
         new_filename=$(echo "$filename" | sed 's/^openwrt-/immortalwrt-/' | sed "s/\.img\.gz$/-${BUILD_DATE}.img.gz/")
@@ -169,7 +169,7 @@ for file in bin/targets/sunxi/cortexa7/*nanopi-r1s-h3*squashfs-sdcard*.img.gz; d
     fi
 done
 
-# rootfs.tar.gz (匹配包含 nanopi-r1s-h3 或者通用的 rootfs，确保最终输出格式正确)
+# rootfs.tar.gz (保持原样不动，按通用 rootfs 匹配)
 for file in bin/targets/sunxi/cortexa7/*rootfs*.tar.gz; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
