@@ -9,9 +9,8 @@ src-git telephony https://github.com/openwrt/telephony.git;openwrt-24.10
 # ============================================================
 # Passwall 社区标准双源
 # ============================================================
-src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git
-src-git passwall https://github.com/xiaorouji/openwrt-passwall.git
-
+src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main
+src-git passwall https://github.com/xiaorouji/openwrt-passwall.git;main
 
 
 # ============================================================
