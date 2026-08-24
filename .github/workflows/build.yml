@@ -18,9 +18,9 @@ jobs:
 
       - name: 初始化编译系统依赖
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|https://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|http://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|http://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|https://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
           sudo apt update
           sudo apt install -y build-essential clang flex bison g++ gawk \
           gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev \
@@ -30,13 +30,13 @@ jobs:
 
       - name: 动态克隆官方 ImmortalWrt 源码
         run: |
-          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
+          git clone --depth 1 https://github.com -b openwrt-24.10 /tmp/immortalwrt
 
-           - name: 优先更新 Feeds 源与安装第三方插件
+      - name: 优先更新 Feeds 源与安装第三方插件
         run: |
           cd /tmp/immortalwrt
           
-          # 在执行任何 Git 拉取前，全局注入 Token 凭证
+          # 在执行任何 Git 拉取前，全局注入 Token 凭证，防止 Feeds 阶段拉取受阻
           git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
           
           # 1. 先把自定义的 feeds.conf.default 拷贝过去
@@ -65,7 +65,7 @@ jobs:
         run: |
           cd /tmp/immortalwrt
           
-          # 再次确保编译内部可能触发的新 Git 克隆也能带上凭证
+          # 再次确保编译脚本内部可能触发的新 Git 克隆也能带上凭证
           git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
           
           # 复制 build.sh 到源码目录并执行
@@ -78,4 +78,3 @@ jobs:
         with:
           name: immortalwrt-nanopi-r1s-h3-firmware
           path: /tmp/immortalwrt/bin/out/*
-
