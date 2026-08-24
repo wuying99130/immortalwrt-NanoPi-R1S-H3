@@ -41,7 +41,7 @@ for repo in "${PLUGINS[@]}"; do
         log_prog "-> 正在克隆 $folder_name ..."
         
         # 🟢 【仅此处进行了规范化修正】：补齐了 $ 变量符与域名后的斜杠
-        git clone --depth=1 "https://github.com{repo}.git" "$CUSTOM_PLUGIN_DIR/$folder_name"
+        git clone --depth=1 "https://github.com/${repo}.git" "$CUSTOM_PLUGIN_DIR/$folder_name"
     else
         log_prog "-> $folder_name 已存在，跳过克隆。"
     fi
