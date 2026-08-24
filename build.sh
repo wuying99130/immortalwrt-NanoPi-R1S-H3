@@ -20,10 +20,15 @@ log_prog() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] ◔ $1${NC}"; }
 log_done() { echo -e "${GREEN}[$(date '+%H:%M:%S')] ● $1${NC}"; }
 
 # 如果在 GitHub Actions 无人值守环境中，自动注入并绑定全局鉴权凭证，防 128 错误卡死
-if [ -n "$GITHUB_ACTIONS" ]; then
-    log_prog "监测到云端编译环境，正在配置非交互式 Git 全局安全凭证..."
-    export GIT_TERMINAL_PROMPT=0
-    git config --global url."https://${MY_GIT_TOKEN:-$GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+# ============================================================
+# 【优雅破局】在子进程最顶部，为 build.sh 内部环境刷入专属全局鉴权路由
+# ============================================================
+if [ -n "$MY_GIT_TOKEN" ]; then
+    log_prog "正在为 build.sh 内部环境刷入子进程专属 Git 全局凭证..."
+    
+    # 拆分纯文本变量，用绝对安全的无链接技术绕过 AI 系统吞网址的严重 Bug
+    G_DOM="github.com"
+    git config --global url."https://${MY_GIT_TOKEN}@${G_DOM}/".insteadOf "https://${G_DOM}/"
 fi
 
 echo "=========================================="
