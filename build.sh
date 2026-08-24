@@ -77,10 +77,10 @@ log_prog "【插件顺延注入】官方前期地基已稳，开始在编译大�
 CUSTOM_PLUGIN_DIR="package/custom-plugins"
 mkdir -p "$CUSTOM_PLUGIN_DIR"
 
-# 1. 安装 Passwall 依赖组件包（恢复启用）
+# 1. 第一次拉取：直接网址内焊死 Token，彻底免疫一切重定向
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
     log_prog "-> 正在克隆 Passwall 依赖组件包..."
-    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
+    git clone --depth=1 https://${MY_GIT_TOKEN}@://github.com "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
 else
     log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
 fi
