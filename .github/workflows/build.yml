@@ -32,13 +32,17 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
 
-      - name: 优先更新 Feeds 源与安装第三方插件
+           - name: 优先更新 Feeds 源与安装第三方插件
         run: |
           cd /tmp/immortalwrt
+          
+          # 在执行任何 Git 拉取前，全局注入 Token 凭证
+          git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          
           # 1. 先把自定义的 feeds.conf.default 拷贝过去
           cp -f ${GITHUB_WORKSPACE}/feeds.conf.default ./
           
-          # 2. 立即更新并安装所有官方及第三方源（将 passwall、adguardhome 等源码下载到本地）
+          # 2. 立即更新并安装所有官方及第三方源
           ./scripts/feeds update -a
           ./scripts/feeds install -f -a
 
@@ -54,15 +58,19 @@ jobs:
           chmod +x patch-dts.sh
           TARGET_DIR="/tmp/immortalwrt" ./patch-dts.sh
           
-          # 5. 最后生成最终配置（此时由于源码已就位，.config 里的第三方插件会被完美保留）
+          # 5. 最后生成最终配置
           make defconfig
 
       - name: 执行核心编译脚本
         run: |
-          # 复制 build.sh 到源码目录并执行
-          cp -f ${GITHUB_WORKSPACE}/build.sh /tmp/immortalwrt/
-          chmod +x /tmp/immortalwrt/build.sh
           cd /tmp/immortalwrt
+          
+          # 再次确保编译内部可能触发的新 Git 克隆也能带上凭证
+          git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          
+          # 复制 build.sh 到源码目录并执行
+          cp -f ${GITHUB_WORKSPACE}/build.sh ./
+          chmod +x ./build.sh
           ./build.sh
 
       - name: 上传编译产物
@@ -70,3 +78,4 @@ jobs:
         with:
           name: immortalwrt-nanopi-r1s-h3-firmware
           path: /tmp/immortalwrt/bin/out/*
+
