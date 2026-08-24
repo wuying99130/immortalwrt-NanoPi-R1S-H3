@@ -89,18 +89,18 @@ else
     log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
 fi
 
-# 2. 安装 Passwall 主程序包（恢复启用）
+# 2. 第二次拉取（原重定向死穴）：直接网址内焊死 Token，100% 强行破局
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
     log_prog "-> 正在克隆 Passwall 主程序..."
-    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
+    git clone --depth=1 https://${MY_GIT_TOKEN}@://github.com "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
 else
     log_prog "-> Passwall 主程序已存在，跳过克隆。"
 fi
 
-# 3. 安装 Sing-Box 模块化面板插件
+# 3. 第三次拉取：直接网址内焊死 Token，稳如泰山
 if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
     log_prog "-> 正在克隆 luci-app-sing-box 插件..."
-    git clone --depth=1 https://github.com/sbwdl/luci-app-sing-box.git "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
+    git clone --depth=1 https://${MY_GIT_TOKEN}@://github.com "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
 else
     log_prog "-> luci-app-sing-box 插件已存在，跳过克隆。"
 fi
