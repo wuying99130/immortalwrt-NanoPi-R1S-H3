@@ -35,9 +35,9 @@ jobs:
       # ================================
       - name: 释放磁盘空间
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|https://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|http://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|http://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|https://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
           sudo apt update
           sudo apt install -y build-essential clang flex bison g++ gawk \
           gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev \
@@ -47,25 +47,35 @@ jobs:
 
       - name: 动态克隆官方 ImmortalWrt 源码
         run: |
-          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
+          git clone --depth 1 https://github.com -b openwrt-24.10 /tmp/immortalwrt
 
       - name: 优先更新 Feeds 源与安装第三方插件
         run: |
           cd /tmp/immortalwrt
-          
-          # 【核准修复】全局注入 Token 凭证，必须严格确保没有多余的斜杠或冒号
-          git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          
-          # 【核心修复】强制清理历史索引残留，防止 find 空文件夹报错卡死
-          rm -rf ./feeds ./data/sysstatus
-          ./scripts/feeds clean
-          
           # 1. 先把自定义的 feeds.conf.default 拷贝过去
           cp -f ${GITHUB_WORKSPACE}/feeds.conf.default ./
           
           # 2. 立即更新并安装所有官方及第三方源
           ./scripts/feeds update -a
           ./scripts/feeds install -f -a
+
+      # ============================================================
+      # 🚀【官方凭证护航】直接在外部安全下载第三方插件，彻底解决 128 报错
+      # ============================================================
+      - name: 下载 Passwall 依赖组件包
+        uses: actions/checkout@v4
+        with:
+          repository: 'xiaorouji/openwrt-passwall-packages'
+          ref: 'main'
+          path: '/tmp/immortalwrt/package/custom-plugins/openwrt-passwall-packages'
+          token: ${{ secrets.MY_GIT_TOKEN }}
+
+      - name: 下载 luci-app-sing-box 插件
+        uses: actions/checkout@v4
+        with:
+          repository: 'sbwdl/luci-app-sing-box'
+          path: '/tmp/immortalwrt/package/custom-plugins/luci-app-sing-box'
+          token: ${{ secrets.MY_GIT_TOKEN }}
 
       - name: 注入 .config 配置与硬件 DTS 资产
         run: |
@@ -85,10 +95,6 @@ jobs:
       - name: 执行核心编译脚本
         run: |
           cd /tmp/immortalwrt
-          
-          # 再次确保编译脚本内部可能触发的新 Git 克隆也能带上凭证
-          git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          
           # 复制 build.sh 到源码目录并执行
           cp -f ${GITHUB_WORKSPACE}/build.sh ./
           chmod +x ./build.sh
