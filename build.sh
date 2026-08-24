@@ -16,24 +16,16 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-log_step()    { echo -e "${CYAN}◉${NC} $1"; }
-log_prog()    { echo -e "${YELLOW}◔${NC} $1"; }
-log_done()    { echo -e "${GREEN}●${NC} $1"; }
-log_sub()     { echo -e "    ➔ $1"; }
-log_skip()    { echo -e "    ◌ $1 (跳过)"; }
+log_prog() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] ◔ $1${NC}"; }
+log_done() { echo -e "${GREEN}[$(date '+%H:%M:%S')] ● $1${NC}"; }
 
-echo ""
-echo "=========================================="
-echo "  ImmortalWrt 编译脚本"
-echo "  目标: NanoPi R1S-H3 (Allwinner H3)"
-echo "  分支: openwrt-24.10"
-echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
-echo "=========================================="
+# 如果在 GitHub Actions 无人值守环境中，自动注入并绑定全局鉴权凭证，防 128 错误卡死
+if [ -n "$GITHUB_ACTIONS" ]; then
+    log_prog "监测到云端编译环境，正在配置非交互式 Git 全局安全凭证..."
+    export GIT_TERMINAL_PROMPT=0
+    git config --global url."https://${MY_GIT_TOKEN:-$GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+fi
 
-# ============================================
-# 阶段一：准备环境（步骤 1-8 合并）
-# ============================================
-echo ""
 echo "=========================================="
 echo "  阶段一：准备编译环境"
 echo "=========================================="
@@ -84,24 +76,23 @@ log_prog "【插件顺延注入】官方前期地基已稳，开始在编译大�
 CUSTOM_PLUGIN_DIR="package/custom-plugins"
 mkdir -p "$CUSTOM_PLUGIN_DIR"
 
-# 【隔离测试：暂时注释掉 Passwall 相关克隆，排查 128 报错根源】
-# # 1. 安装 Passwall 依赖组件包
-# if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
-#     log_prog "-> 正在克隆 Passwall 依赖组件包..."
-#     git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
-# else
-#     log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
-# fi
-# 
-# # 2. 安装 Passwall 主程序包
-# if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
-#     log_prog "-> 正在克隆 Passwall 主程序..."
-#     git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
-# else
-#     log_prog "-> Passwall 主程序已存在，跳过克隆。"
-# fi
+# 1. 安装 Passwall 依赖组件包（恢复启用）
+if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
+    log_prog "-> 正在克隆 Passwall 依赖组件包..."
+    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
+else
+    log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
+fi
 
-# 3. 安装 Sing-Box 模块化面板插件（保持正常安装，测试其他插件）
+# 2. 安装 Passwall 主程序包（恢复启用）
+if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
+    log_prog "-> 正在克隆 Passwall 主程序..."
+    git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
+else
+    log_prog "-> Passwall 主程序已存在，跳过克隆。"
+fi
+
+# 3. 安装 Sing-Box 模块化面板插件
 if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
     log_prog "-> 正在克隆 luci-app-sing-box 插件..."
     git clone --depth=1 https://github.com/sbwdl/luci-app-sing-box.git "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
