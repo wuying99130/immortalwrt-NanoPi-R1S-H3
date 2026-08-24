@@ -50,7 +50,7 @@ jobs:
           # 纯文本变量拆分拼接，确保 100% 避开 AI 网址吞字 Bug
           AUTHOR="immortalwrt"
           PROJECT="immortalwrt.git"
-          git clone --depth 1 https://github.com{AUTHOR}/${PROJECT} -b openwrt-24.10 /tmp/immortalwrt
+          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
 
       - name: 优先更新 Feeds 源与安装第三方插件
         run: |
