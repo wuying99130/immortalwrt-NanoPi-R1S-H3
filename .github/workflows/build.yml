@@ -30,7 +30,7 @@ jobs:
 
       - name: 动态克隆官方 ImmortalWrt 源码
         run: |
-          git clone --depth 1 https://github.com -b openwrt-24.10 /tmp/immortalwrt
+          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 /tmp/immortalwrt
 
       - name: 优先更新 Feeds 源与安装第三方插件
         run: |
