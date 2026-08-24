@@ -18,9 +18,9 @@ jobs:
 
       - name: 初始化编译系统依赖
         run: |
-          sudo sed -i 's|http://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|http://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
-          sudo sed -i 's|https://ubuntu.com|https://tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|http://azure.archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
+          sudo sed -i 's|https://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
           sudo apt update
           sudo apt install -y build-essential clang flex bison g++ gawk \
           gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev \
