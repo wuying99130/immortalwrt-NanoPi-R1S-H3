@@ -36,8 +36,12 @@ jobs:
         run: |
           cd /tmp/immortalwrt
           
-          # 在执行任何 Git 拉取前，全局注入 Token 凭证，防止 Feeds 阶段拉取受阻
+          # 【核准修复】全局注入 Token 凭证，必须严格确保没有多余的斜杠或冒号
           git config --global url."https://${{ secrets.MY_GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          
+          # 【核心修复】强制清理历史索引残留，防止 find 空文件夹报错卡死
+          rm -rf ./feeds ./data/sysstatus
+          ./scripts/feeds clean
           
           # 1. 先把自定义的 feeds.conf.default 拷贝过去
           cp -f ${GITHUB_WORKSPACE}/feeds.conf.default ./
