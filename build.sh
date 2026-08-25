@@ -77,28 +77,27 @@ log_prog "【插件顺延注入】官方前期地基已稳，开始在编译大�
 CUSTOM_PLUGIN_DIR="package/custom-plugins"
 mkdir -p "$CUSTOM_PLUGIN_DIR"
 
-# 1. 第一次拉取：补全官方完整路径与斜杠，使其顺利触发 insteadOf 路由逻辑
+G_SITE="github.com"
+P_PACKAGES="Openwrt-Passwall/openwrt-passwall-packages.git"
+P_MAIN="Openwrt-Passwall/openwrt-passwall.git"
+P_SINGBOX="sbwdl/luci-app-sing-box.git"
+
+# 1. 精准下载依赖组件包
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
     log_prog "-> 正在克隆 Passwall 依赖组件包..."
-    git clone --depth=1 https://github.com "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
-else
-    log_prog "-> Passwall 依赖组件包已存在，跳过克隆。"
+    git clone --depth=1 "https://${G_SITE}/${P_PACKAGES}" "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages"
 fi
 
-# 2. 第二次拉取：补全官方完整路径与斜杠，使其顺利触发 insteadOf 路由逻辑
+# 2. 精准下载 Passwall 主程序
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
     log_prog "-> 正在克隆 Passwall 主程序..."
-    git clone --depth=1 https://github.com "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
-else
-    log_prog "-> Passwall 主程序已存在，跳过克隆。"
+    git clone --depth=1 "https://${G_SITE}/${P_MAIN}" "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
 fi
 
-# 3. 第三次拉取：补全官方完整路径与斜杠，使其顺利触发 insteadOf 路由逻辑
+# 3. 精准下载 sing-box 面板插件
 if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
     log_prog "-> 正在克隆 luci-app-sing-box 插件..."
-    git clone --depth=1 https://github.com "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
-else
-    log_prog "-> luci-app-sing-box 插件已存在，跳过克隆。"
+    git clone --depth=1 "https://${G_SITE}/${P_SINGBOX}" "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
 fi
 
 # 再次执行 defconfig，让系统正式把刚克隆进来的插件纳入编译索引
