@@ -85,7 +85,7 @@ mkdir -p "$CUSTOM_PLUGIN_DIR"
 G_SITE="github.com"
 P_PACKAGES="Openwrt-Passwall/openwrt-passwall-packages.git"
 P_MAIN="Openwrt-Passwall/openwrt-passwall.git"
-P_SINGBOX="sbwdl/luci-app-sing-box.git"
+P_SINGBOX="safing/luci-app-sing-box.git"
 
 # 1. 精准下载依赖组件包
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
