@@ -80,7 +80,7 @@ mkdir -p "$CUSTOM_PLUGIN_DIR"
 G_SITE="github.com"
 P_PACKAGES="Openwrt-Passwall/openwrt-passwall-packages.git"
 P_MAIN="Openwrt-Passwall/openwrt-passwall.git"
-P_SINGBOX="safing/luci-app-sing-box.git"
+P_SINGBOX="sbwml/luci-app-sing-box.git"
 
 # 1. 精准下载依赖组件包
 if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall-packages" ]; then
@@ -94,10 +94,10 @@ if [ ! -d "$CUSTOM_PLUGIN_DIR/openwrt-passwall" ]; then
     git clone --depth=1 "https://${G_SITE}/${P_MAIN}" "$CUSTOM_PLUGIN_DIR/openwrt-passwall"
 fi
 
-# 3. 精准下载 sing-box 面板插件
+# 3. 精准下载 sing-box 面板插件（已修正为真实存在的开源仓库地址）
 if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
     log_prog "-> 正在克隆 luci-app-sing-box 插件..."
-    git clone --depth=1 "https://github.com/SBWW/luci-app-sing-box.git" "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
+    git clone --depth=1 "https://${G_SITE}/${P_SINGBOX}" "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
 fi
 
 # 再次执行 defconfig，让系统正式把刚克隆进来的插件纳入编译索引
