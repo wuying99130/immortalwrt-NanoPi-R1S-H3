@@ -117,11 +117,10 @@ log_prog "正在编译包含自定义插件的系统固件主体（耗时较长�
 BUILD_LOG="/tmp/build.log"
 BUILD_FAILED=0
 
-# 【新增此处】优先单线程把高负载的 Rust 宿主机工具链编译过掉，防止并发崩溃
-log_prog "正在预编译容易过载的 rust 主机工具链..."
-make package/feeds/packages/rust/host-compile -j1 || true
+# 先单线程把最容易崩溃的 rust 主机工具链编译过去
+make package/feeds/packages/rust/host-compile -j1 V=s || true
 
-# 接着放开多线程正常编译大盘
+# 接着再用双线程正常编译整个固件
 if ! make -j2 > "$BUILD_LOG" 2>&1; then
     BUILD_FAILED=1
 fi
