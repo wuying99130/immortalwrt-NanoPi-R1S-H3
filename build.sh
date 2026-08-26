@@ -102,7 +102,7 @@ fi
 # 3. 精准下载 sing-box 面板插件（直接显式拼接 Token，杜绝全局配置失效或 128 错误）
 if [ ! -d "$CUSTOM_PLUGIN_DIR/luci-app-sing-box" ]; then
     log_prog "-> 正在克隆 luci-app-sing-box 插件..."
-#    git clone --depth=1 "https://${MY_GIT_TOKEN}@${G_SITE}/${P_SINGBOX}" "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
+     git clone --depth=1 "https://${MY_GIT_TOKEN}@${G_SITE}/${P_SINGBOX}" "$CUSTOM_PLUGIN_DIR/luci-app-sing-box"
 fi
 
 # 再次执行 defconfig，让系统正式把刚克隆进来的插件纳入编译索引
@@ -122,7 +122,7 @@ log_prog "正在预编译容易过载的 rust 主机工具链..."
 make package/feeds/packages/rust/host-compile -j1 || true
 
 # 接着放开多线程正常编译大盘
-if ! make -j$(nproc) > "$BUILD_LOG" 2>&1; then
+if ! make -j2 > "$BUILD_LOG" 2>&1; then
     BUILD_FAILED=1
 fi
 
