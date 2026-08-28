@@ -37,7 +37,8 @@ jobs:
           cd /tmp/immortalwrt
           
           echo "=== 触发 ImmortalWrt 原生 SDK 编译目标 ==="
-          make sdk/compile -j$(nproc) || true
+          make target/compile -j$(nproc) || true
+          make sdk/install -j$(nproc) || true
           
           mkdir -p /tmp/sdk_out
           for sdk_file in bin/downloads/openwrt-sdk-*.tar.xz bin/targets/sunxi/cortexa7/openwrt-sdk-*.tar.xz; do
@@ -45,7 +46,7 @@ jobs:
                   cp -f "$sdk_file" /tmp/sdk_out/
                   echo "已捕获专属 SDK 压缩包: $(basename "$sdk_file")"
               fi
-          end
+          done
           
           # 备用防漏：若未直接生成独立归档，则手动打包核心编译资产
           if [ ! "$(ls -A /tmp/sdk_out)" ]; then
