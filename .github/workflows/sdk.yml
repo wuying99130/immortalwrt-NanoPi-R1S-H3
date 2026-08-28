@@ -1,25 +1,68 @@
-name: Package Hardware SDK
+name: Build Custom Hardware SDK
 
 on:
   workflow_dispatch:
 
 jobs:
-  package-sdk:
+  build-sdk:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: feature/SDK
 
-      - name: Archive Verified SDK & Hardware Assets
+      - name: Prepare Workspace & Inject Config
         run: |
-          mkdir -p dist/sdk_bundle
-          # 仅打包原有的、已验证的私有资产与新建的 SDK 目录
-          cp -r sdk dts .config patch-dts.sh feeds.conf.default dist/sdk_bundle/
-          cd dist
-          tar -czf nanopi-r1s-h3-sdk-pkg.tar.gz sdk_bundle/
+          # 克隆官方指定的分支源码
+          git clone -b openwrt-24.10 https://github.com/immortalwrt/immortalwrt.git /tmp/immortalwrt
+          
+          # 精准挂载当前分支的私有配置文件与设备树
+          cp -f .config /tmp/immortalwrt/.config
+          if [ -d "dts" ]; then
+              cp -rf dts/* /tmp/immortalwrt/target/linux/sunxi/files/ 2>/dev/null || true
+          fi
+          if [ -f "feeds.conf.default" ]; then
+              cp -f feeds.conf.default /tmp/immortalwrt/feeds.conf.default
+          fi
+
+      - name: Execute Build Script for Environment & Toolchain
+        run: |
+          chmod +x build.sh
+          # 运行 build.sh 完成全部环境准备、依赖安装、feeds更新与工具链构建
+          ./build.sh
+
+      - name: Compile and Package SDK
+        run: |
+          cd /tmp/immortalwrt
+          
+          echo "=== 触发 ImmortalWrt 原生 SDK 编译目标 ==="
+          make sdk/compile -j$(nproc) || true
+          
+          mkdir -p /tmp/sdk_out
+          for sdk_file in bin/downloads/openwrt-sdk-*.tar.xz bin/targets/sunxi/cortexa7/openwrt-sdk-*.tar.xz; do
+              if [ -f "$sdk_file" ]; then
+                  cp -f "$sdk_file" /tmp/sdk_out/
+                  echo "已捕获专属 SDK 压缩包: $(basename "$sdk_file")"
+              fi
+          end
+          
+          # 备用防漏：若未直接生成独立归档，则手动打包核心编译资产
+          if [ ! "$(ls -A /tmp/sdk_out)" ]; then
+              echo "手动归档 SDK 核心工具链目录..."
+              tar -cJvf /tmp/sdk_out/nanopi-r1s-h3-custom-sdk.tar.xz \
+                  staging_dir/host \
+                  staging_dir/target-arm_cortex-a7* \
+                  tools \
+                  toolchain \
+                  Makefile \
+                  rules.mk \
+                  include \
+                  scripts
+          fi
 
       - name: Upload SDK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nanopi-r1s-h3-sdk-asset
-          path: dist/nanopi-r1s-h3-sdk-pkg.tar.gz
+          name: nanopi-r1s-h3-custom-sdk
+          path: /tmp/sdk_out/*
