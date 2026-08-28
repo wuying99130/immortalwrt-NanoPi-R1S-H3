@@ -1,0 +1,25 @@
+name: Package Hardware SDK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package-sdk:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Archive Verified SDK & Hardware Assets
+        run: |
+          mkdir -p dist/sdk_bundle
+          # 仅打包原有的、已验证的私有资产与新建的 SDK 目录
+          cp -r sdk dts .config patch-dts.sh feeds.conf.default dist/sdk_bundle/
+          cd dist
+          tar -czf nanopi-r1s-h3-sdk-pkg.tar.gz sdk_bundle/
+
+      - name: Upload SDK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nanopi-r1s-h3-sdk-asset
+          path: dist/nanopi-r1s-h3-sdk-pkg.tar.gz
