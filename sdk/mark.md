@@ -90,5 +90,39 @@ make package/luci-app-example/compile V=s -j$(nproc)
 
 ```
 
+## 四、 在 GitHub 网页端不使用本地终端，直接通过云端手动编译匹配硬件核心的 ipk 文件及依赖
+
+如果不习惯使用本地终端，完全可以在 GitHub 网页端借助云端工作流直接完成配置、触发和编译：
+
+调整本地配置以指定要编译的插件
+
+在 GitHub 仓库网页端找到根目录下的 .config 文件，点击编辑图标（Edit）。
+
+在文件中搜索或直接添加你需要的软件包配置项（例如将目标插件改为 =m 表示编译为 ipk 模块，或通过修改对应的 Makefile / 使用其他配置手段）。
+
+确认修改无误后，点击页面下方的 Commit changes 提交保存到当前分支。
+
+在网页端手动触发一体化工作流
+
+点击仓库顶部的 Actions 标签页。
+
+在左侧边栏找到并点击 编译 ImmortalWrt NanoPi R1S-H3 固件与专属 SDK 工作流。
+
+点击页面右侧的 Run workflow 下拉按钮。
+
+在弹出的选项中选择对应的版本分支（例如 openwrt-24.10），如果需要附加其他软件包可以在输入框中填写，最后点击绿色 Run workflow 按钮启动云端编译。
+
+从云端后台下载编译好的 ipk 插件
+
+等待工作流自动串行跑通（固件编译完成后会自动开始 SDK 编译）。
+
+运行结束后，点击进入该次运行的详情页面，在下方的 Artifacts（制品）区域：
+
+下载 nanopi-r1s-h3-custom-sdk 压缩包。
+
+同时也能够在对应的 SDK 或编译输出目录中找到云端打包好的 .ipk 文件及相关依赖，直接下载并上传到路由器后台进行安装即可。
+
+```
+
 
 编译完成后，生成的 `.ipk` 文件会存放在 SDK 目录下的 `bin/packages/` 或 `bin/targets/sunxi/cortexa7/packages/` 路径中，直接拷到路由器上即可通过 `opkg install` 安装。
